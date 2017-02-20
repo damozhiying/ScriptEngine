@@ -1,0 +1,6 @@
+*.class
+*.idea
+*.iml
+target/
+script-client/target/
+script-engine/target/
