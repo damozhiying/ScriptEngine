@@ -2,15 +2,27 @@ package com.vdian.script.client.utils;
 
 
 import com.google.common.base.Strings;
+import com.vdian.script.client.constant.Constant;
 import com.vdian.script.client.exception.ScriptEngineException;
+import com.vdian.script.client.service.IScriptService;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryNTimes;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author jifang
@@ -55,6 +67,32 @@ public class ScriptUtils {
         String suffix = salt.substring(middle + 1);
 
         return new String[]{prefix, suffix};
+    }
+
+
+    public static Iterator<String> getEngineNodes(String zkAddrs, String path) throws Exception {
+        CuratorFramework client = CuratorFrameworkFactory
+                .builder()
+                .connectString(zkAddrs)
+                .retryPolicy(new RetryNTimes(5, 3000))
+                .namespace(Constant.ENGINE_SERVICE_NAME_SPACE)
+                .build();
+
+        client.start();
+
+        return client.getChildren().forPath(path).iterator();
+    }
+
+    public static Iterator<IScriptService> getEngineServices(Iterator<String> engineNodes) throws RemoteException, NotBoundException, MalformedURLException {
+        List<IScriptService> services = new LinkedList<>();
+        while (engineNodes.hasNext()) {
+            String node = engineNodes.next();
+            String url = String.format(Constant.SERVICE_URL_PATTERN, node);
+            IScriptService service = (IScriptService) Naming.lookup(url);
+            services.add(service);
+        }
+
+        return services.iterator();
     }
 
     public static Pair<String, Integer> getServiceAddr() {
